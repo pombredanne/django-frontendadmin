@@ -9,11 +9,12 @@ from django.shortcuts import render_to_response
 from django.template.context import RequestContext
 from django.template.loader import get_template
 from django.template import TemplateDoesNotExist
-from django.utils.translation import ugettext
+from django.utils.translation import ugettext as _
 from django.views.decorators.cache import never_cache
 from django.utils.importlib import import_module
 from django.conf import settings
 from django.forms import CharField
+from django.contrib import messages
 
 from forms import DeleteRequestForm, FrontendAdminModelForm
 
@@ -151,9 +152,12 @@ def add(request, app_label, model_name, mode_name='add',
         if form.is_valid():
             instance = form.save()
             # Give the user a nice message
-            request.user.message_set.create(
-                message=ugettext(u'Your %(model_name)s was added successfully' % \
-                    {'model_name': model._meta.verbose_name}))
+            msg=_(u'Your %(model_name)s was added successfully') % \
+                                {'model_name': model._meta.verbose_name}           
+            try:
+                request.user.message_set.create(msg)
+            except AttributeError:
+                messages.success(request, msg)
             # Return to last page
             if request.is_ajax():
                 return success(request)
@@ -162,7 +166,7 @@ def add(request, app_label, model_name, mode_name='add',
         form = instance_form()
     template_context = {
         'action': 'add',
-        'action_url': request.build_absolute_uri(),
+        'action_url': request.get_full_path(),
         'model_title': model._meta.verbose_name,
         'form': form
     }
@@ -196,10 +200,14 @@ def change(request, app_label, model_name, instance_id, mode_name='change',
         form = instance_form(request.POST, request.FILES, instance=instance)
         if form.is_valid():
             instance = form.save()
+            msg=_(u'Your %(model_name)s was changed successfully') % \
+                                {'model_name': model._meta.verbose_name}           
             # Give the user a nice message
-            request.user.message_set.create(
-                message=ugettext(u'Your %(model_name)s was changed successfully' % \
-                    {'model_name': model._meta.verbose_name}))
+            try:
+                request.user.message_set.create(msg)
+            except AttributeError:
+                messages.success(request, msg)
+                
             # Return to success page
             if request.is_ajax():
                 return success(request)
@@ -209,7 +217,7 @@ def change(request, app_label, model_name, instance_id, mode_name='change',
 
     template_context = {
         'action': 'change',
-        'action_url': request.build_absolute_uri(),
+        'action_url': request.get_full_path(),
         'model_title': model._meta.verbose_name,
         'form': form,
     }
@@ -227,7 +235,7 @@ def delete(request, app_label, model_name, instance_id,
                                delete_form=DeleteRequestForm):
 
     # Get model, instance_form and instance for arguments
-    instance_return = _get_instance(request, model_name, app_label, model_name, instance_id)
+    instance_return = _get_instance(request, 'delete', app_label, model_name, instance_id)
     if isinstance(instance_return, HttpResponseForbidden):
         return instance_return
     model, instance_form, instance = instance_return
@@ -242,9 +250,14 @@ def delete(request, app_label, model_name, instance_id,
         if form.is_valid():
             instance.delete()
             # Give the user a nice message
-            request.user.message_set.create(
-                message=ugettext(u'Your %(model_name)s was deleted.' % \
-                    {'model_name': model._meta.verbose_name}))
+            
+            msg=_(u'Your %(model_name)s was deleted.') % \
+                    {'model_name': model._meta.verbose_name}
+            try:
+                request.user.message_set.create(msg)
+            except AttributeError:
+                messages.success(request, msg)    
+                
             # Return to last page
             if request.is_ajax():
                 return success_delete(request)
@@ -255,7 +268,7 @@ def delete(request, app_label, model_name, instance_id,
 
     template_context = {
         'action': 'delete',
-        'action_url': request.build_absolute_uri(),
+        'action_url': request.get_full_path(),
         'model_title': model._meta.verbose_name,
         'form': form,
     }
